@@ -1,0 +1,54 @@
+networks:
+  testSentry:
+    driver: bridge
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginxForSentry
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./app:/var/www/app:delegated
+    depends_on:
+      - php
+    networks:
+      - testSentry
+
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phpForSentry
+    restart: unless-stopped
+    tty: true
+    expose:
+      - "9000"
+    volumes:
+      - ./app:/var/www/app:delegated
+    networks:
+      - testSentry
+    depends_on:
+      - mssql
+
+  mssql:
+    container_name: mssqlForSentry
+    hostname: mssqlForSentry
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_SA_PASSWORD: 'Passw0rd'
+      MSSQL_DATA_DIR: /var/opt/mssql/data
+      MSSQL_PID: 'Developer' 
+      MSSQL_TCP_PORT: 1433 
+    networks:
+      - testSentry
+    ports: 
+      - "1433:1433"
+    volumes:
+      - ../DB/data:/var/opt/mssql/data
+      - ../DB/log:/var/opt/mssql/log
+      - ../DB/secrets:/var/opt/mssql/secrets
